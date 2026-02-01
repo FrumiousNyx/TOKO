@@ -1,10 +1,13 @@
 {
   "name": "toko-nike-backend",
   "version": "1.0.0",
-  "description": "Backend untuk Toko Nike",
+  "description": "Backend Nike Store",
   "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
-    "mongoose": "^8.0.0"
+    "mongoose": "^8.2.0"
   },
   "engines": {
     "node": "24.x"
