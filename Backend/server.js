@@ -1,9 +1,14 @@
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const mongoose = require('mongoose');
 
-// 1. Definisikan Skema Produk agar sesuai dengan isi database kamu
+// 1. Koneksi ke MongoDB menggunakan variabel dari Vercel
+const MONGO_URI = process.env.MONGO_URI; 
+
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("Terhubung ke MongoDB!"))
+  .catch(err => console.error("Gagal konek MongoDB:", err));
+
+// 2. Definisikan Skema Produk (Sesuaikan dengan nama kolom di MongoDB kamu)
 const ProductSchema = new mongoose.Schema({
     nama: String,
     harga: Number,
@@ -11,53 +16,36 @@ const ProductSchema = new mongoose.Schema({
 });
 const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
 
-const MONGO_URI = process.env.MONGO_URI; 
-
-mongoose.connect(MONGO_URI)
-  .then(() => console.log("Terhubung ke MongoDB!"))
-  .catch(err => console.error("Gagal konek MongoDB:", err));
-
-// Tambahkan "async" di sini agar bisa menggunakan "await"
+// 3. Buat Server
 const server = http.createServer(async (req, res) => {
     
-    // 2. Logika API untuk mengambil data asli dari MongoDB
+    // Setting header agar bisa diakses oleh link frontend vercel kamu (CORS)
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
+    // Jalankan logika API untuk ambil data asli
     if (req.url === '/api/products') {
         try {
-            const products = await Product.find(); // Mengambil semua data produk
-            res.writeHead(200, { 
-                'Content-Type': 'application/json', 
-                'Access-Control-Allow-Origin': '*' // Izinkan Frontend mengakses data ini
-            });
+            const products = await Product.find(); // Ini langkah yang mengambil data asli
+            res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(products));
         } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: "Gagal mengambil data dari database" }));
+            res.end(JSON.stringify({ error: "Gagal ambil data database" }));
         }
         return;
     }
 
-    // Melayani file statis (HTML, CSS, JS)
-    let filePath = req.url === '/' ? './index.html' : `.${req.url}`;
-    let extname = String(path.extname(filePath)).toLowerCase();
-    const mimeTypes = {
-        '.html': 'text/html',
-        '.js': 'text/javascript',
-        '.css': 'text/css',
-        '.png': 'image/png',
-        '.jpg': 'image/jpg',
-    };
-
-    let contentType = mimeTypes[extname] || 'application/octet-stream';
-
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            res.writeHead(404);
-            res.end('File Tidak Ditemukan');
-        } else {
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content, 'utf-8');
-        }
-    });
+    // Jika akses halaman utama server
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Backend Nike Store sudah aktif dan terhubung ke MongoDB.');
 });
 
 const PORT = process.env.PORT || 3000;
