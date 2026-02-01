@@ -1,20 +1,38 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const mongoose = require('mongoose'); // Tambahkan ini
+const mongoose = require('mongoose');
 
-// Koneksi ke MongoDB menggunakan Environment Variable dari Vercel
+// 1. Definisikan Skema Produk agar sesuai dengan isi database kamu
+const ProductSchema = new mongoose.Schema({
+    nama: String,
+    harga: Number,
+    kategori: String
+});
+const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
+
 const MONGO_URI = process.env.MONGO_URI; 
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Terhubung ke MongoDB!"))
   .catch(err => console.error("Gagal konek MongoDB:", err));
 
-const server = http.createServer((req, res) => {
-    // Jalankan logika API di sini (Contoh: ambil data produk)
+// Tambahkan "async" di sini agar bisa menggunakan "await"
+const server = http.createServer(async (req, res) => {
+    
+    // 2. Logika API untuk mengambil data asli dari MongoDB
     if (req.url === '/api/products') {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ message: "Koneksi Backend Berhasil!" }));
+        try {
+            const products = await Product.find(); // Mengambil semua data produk
+            res.writeHead(200, { 
+                'Content-Type': 'application/json', 
+                'Access-Control-Allow-Origin': '*' // Izinkan Frontend mengakses data ini
+            });
+            res.end(JSON.stringify(products));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: "Gagal mengambil data dari database" }));
+        }
         return;
     }
 
@@ -42,7 +60,6 @@ const server = http.createServer((req, res) => {
     });
 });
 
-// Vercel akan menentukan PORT secara otomatis, jadi kita gunakan process.env.PORT
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
