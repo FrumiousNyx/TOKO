@@ -42,11 +42,10 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
-// PENTING UNTUK VERCEL
-module.exports = server;
-
-// Hanya jalankan listen jika di komputer sendiri (bukan Vercel)
+// Ganti bagian paling bawah server.js kamu dengan ini:
 if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 3000;
-    server.listen(PORT, () => console.log(`Jalan di port ${PORT}`));
+    const PORT = process.env.PORT || 5000;
+    server.listen(PORT, () => console.log(`Server jalan di port ${PORT}`));
 }
+
+module.exports = server;
