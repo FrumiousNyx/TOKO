@@ -2,27 +2,35 @@ const http = require('http');
 const mongoose = require('mongoose');
 
 // 1. Ambil MONGO_URI dari Environment Variable Vercel
-const MONGO_URI = process.env.MONGO_URI; 
+const MONGO_URI = process.env.MONGO_URI;
 
-// 2. Koneksi ke MongoDB
-mongoose.connect(MONGO_URI)
-  .then(() => console.log("Terhubung ke MongoDB!"))
-  .catch(err => console.error("Gagal konek MongoDB:", err));
-
-// 3. Definisi Skema Produk
+// 2. Definisi Skema Produk
 const ProductSchema = new mongoose.Schema({
     nama: String,
     harga: Number,
     kategori: String
 });
 
-// Perbaikan: Menambahkan 'producs' (tanpa 't') sebagai nama koleksi eksplisit 
-// agar sesuai dengan screenshot database kamu.
+// Menggunakan nama koleksi 'producs' sesuai dengan database kamu
 const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema, 'producs');
 
-// 4. Buat Server
-const server = http.createServer(async (req, res) => {
+// Fungsi pembantu untuk koneksi database yang stabil di Vercel
+const connectDB = async () => {
+    if (mongoose.connection.readyState >= 1) return;
     
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log("Terhubung ke MongoDB!");
+    } catch (err) {
+        console.error("Gagal koneksi MongoDB:", err);
+    }
+};
+
+// 3. Buat Server
+const server = http.createServer(async (req, res) => {
+    // Pastikan koneksi DB siap sebelum memproses request
+    await connectDB();
+
     // Setting header CORS agar Frontend bisa mengakses API
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -38,36 +46,32 @@ const server = http.createServer(async (req, res) => {
     // API Route untuk mengambil produk
     if (req.url === '/api/products') {
         try {
-            // Pastikan koneksi DB sudah siap (status 1 = connected)
+            // Cek sekali lagi status koneksi
             if (mongoose.connection.readyState !== 1) {
                 res.writeHead(503, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: "Database belum siap, coba lagi nanti." }));
-                return;
+                return res.end(JSON.stringify({ error: "Database masih dalam proses menyambung, silakan refresh." }));
             }
 
-            const products = await Product.find();
+            const products = await Product.find({});
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(products));
         } catch (err) {
-            console.error("Error saat ambil data:", err);
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: "Gagal ambil data dari database" }));
+            res.end(JSON.stringify({ error: "Terjadi kesalahan pada server", details: err.message }));
         }
-        return;
+    } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: "Route tidak ditemukan. Gunakan /api/products" }));
     }
-
-    // Halaman utama jika akses URL selain /api/products
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Backend Nike Store sudah aktif dan terhubung ke MongoDB.');
 });
 
-// PENTING: Hanya jalankan server.listen jika di lingkungan Lokal (Bukan Vercel)
-if (process.env.NODE_ENV !== 'production') {
+// Export untuk Vercel
+module.exports = server;
+
+// Jalankan server jika dijalankan secara lokal
+if (require.main === module) {
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
-        console.log(`Server lokal berjalan di port ${PORT}`);
+        console.log(`Server jalan di port ${PORT}`);
     });
 }
-
-// Export server untuk digunakan oleh Vercel
-module.exports = server;
