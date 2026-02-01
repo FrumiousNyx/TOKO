@@ -1,0 +1,8 @@
+{
+  "name": "toko-nike-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "mongoose": "^8.22.0"
+  }
+}
